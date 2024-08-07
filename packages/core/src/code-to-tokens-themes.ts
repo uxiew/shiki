@@ -3,8 +3,10 @@ import type {
   ShikiInternal,
   ThemedToken,
   ThemedTokenWithVariants,
+  ThemeRegistrationResolved,
 } from './types'
 import { codeToTokensBase } from './code-to-tokens-base'
+import { ShikiError } from './error'
 
 /**
  * Get tokens with multiple themes
@@ -18,12 +20,37 @@ export function codeToTokensWithThemes(
     .filter(i => i[1])
     .map(i => ({ color: i[0], theme: i[1]! }))
 
+  const _gstheme = options.grammarState?.theme
+  let gsThemeIncluded  = false
+
   const tokens = syncThemesTokenization(
-    ...themes.map(t => codeToTokensBase(internal, code, {
-      ...options,
-      theme: t.theme,
-    })),
+    ...themes.map(t => {
+    
+      const themeName = typeof t.theme === 'string' 
+      ? t.theme : ((t.theme as ThemeRegistrationResolved).name)
+
+      if (options.grammarState) {
+        if(_gstheme === themeName){
+           gsThemeIncluded = true
+        }
+        options.grammarState.theme = themeName
+      }
+
+      return codeToTokensBase(internal, code, {
+        ...options,
+        theme: t.theme,
+      })
+    }),
   )
+  
+  if(options.grammarState) {
+    options.grammarState.theme = _gstheme!
+
+    if (!gsThemeIncluded) {
+      throw new ShikiError(`Grammar state theme "${_gstheme}" is not in \`themes\``)
+    }
+  }
+
 
   const mergedTokens: ThemedTokenWithVariants[][] = tokens[0]
     .map((line, lineIdx) => line
@@ -34,7 +61,7 @@ export function codeToTokensWithThemes(
           offset: _token.offset,
         }
 
-        if ('includeExplanation' in options && options.includeExplanation) {
+        if (options.includeExplanation) {
           mergedToken.explanation = _token.explanation
         }
 

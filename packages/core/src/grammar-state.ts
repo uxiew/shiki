@@ -19,7 +19,7 @@ export class GrammarState {
   constructor(
     private readonly _stack: StateStack,
     public readonly lang: string,
-    public readonly theme: string,
+    public theme: string,
   ) {}
 
   get scopes() {
